@@ -3,12 +3,12 @@
 /* -------------------  MOBILE  --------------------- */
 
 header {
-  background-image: url('https://via.placeholder.com/1150');
+  background-image: url('http://localhost:3000/assets/images/psycho.png');
 }
 
 #racer-image {
   width: 120px;
-  height: 350px;
+  height: 420px;
 }
 
 .racer-stats {
@@ -26,6 +26,10 @@ header {
 .racer-filled-bar {
   height: 10px;
   position: absolute;
+}
+
+.card {
+  margin-right: 20px;
 }
 
 /* -------------------  TABLET  --------------------- */

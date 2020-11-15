@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", function() {
 async function onPageLoad() {
 	try {
 
-		 getLocalData()
+		 await getLocalData()
 			.then(localData => {
 				console.log("LOCAL DATA", localData)
 				store["local_data"] = localData;
@@ -288,12 +288,20 @@ function renderTrackCards(tracks) {
 
 function renderTrackCard(track) {
 	const { id, name } = track
-
+	const localTrack = getLocalTrack(id);
 	return `
 		<li id="${id}" class="card track">
-			<h3>${name}</h3>
+			<h3 style="text-align: center">${localTrack ? localTrack["name"] : name}</h3>
 		</li>
 	`
+}
+
+function getLocalTrack(trackId) {
+	console.log("STORE",store)
+	if(store["local_data"] && store["local_data"].hasOwnProperty("tracks")) {
+		return store["local_data"]["tracks"].find(track => track["id"] === trackId);
+	}
+	return undefined;
 }
 
 function renderCountdown(count) {
@@ -304,9 +312,10 @@ function renderCountdown(count) {
 }
 
 function renderRaceStartView(track, racers) {
+	const localTrack = getLocalTrack(track["id"]);
 	return `
 		<header>
-			<h1>Race: ${track.name}</h1>
+			<h1>Track: ${localTrack ? localTrack["name"] : track.name}</h1>
 		</header>
 		<main id="two-columns">
 			<section id="leaderBoard">
@@ -331,7 +340,7 @@ function resultsView(positions) {
 		</header>
 		<main>
 			${raceProgress(positions)}
-			<a href="/race">Start a new race</a>
+			<a href="/race" class="button">Start a new race</a>
 		</main>
 	`
 }
@@ -346,14 +355,14 @@ function raceProgress(positions) {
 	const results = positions.map(p => {
 	const localRacer = getLocalRacer(p.id);
 	const racerName = localRacer ? localRacer["driver_name"] : p.driver_name;
-	const positionImage = `http://localhost:3000/assets/images/positions/png/${count}.png`;
+	const positionImage = `http://localhost:3000/assets/images/positions/${count}.png`;
 	const imgUrl = renderRacer(racerName);
 	count++;
 		return `
 			<tr>
 				<td>
 					<div style="display: inline-block; position: relative">
-						<h3>${racerName}</h3>
+						<h4>${racerName} ${p.id === store["player_id"] ? " (You)" : ""}</h4>
 						<img src=${positionImage} alt=${`position ${count}`} width="32px" height="32px" style="position: absolute; bottom: 10px; left: 10px">
 						<img id="racer-image" src=${imgUrl} alt=${racerName}>
 					</div>
@@ -367,6 +376,7 @@ function raceProgress(positions) {
 			<h3>Leaderboard</h3>
 			<section id="leaderBoard">
 				${results}
+				 <div>Icons made by <a href="https://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com></a></div>
 			</section>
 		</main>
 	`
