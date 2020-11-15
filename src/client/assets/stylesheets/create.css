@@ -6,6 +6,27 @@ header {
   background-image: url('https://via.placeholder.com/1150');
 }
 
+#racer-image {
+  width: 120px;
+  height: 350px;
+}
+
+.racer-stats {
+  width: 100%;
+  padding: 10px;
+}
+
+.racer-bar {
+  width: 100%;
+  height: 10px;
+  position: relative;
+  border: 1px solid gray;
+}
+
+.racer-filled-bar {
+  height: 10px;
+  position: absolute;
+}
 
 /* -------------------  TABLET  --------------------- */
 @media (min-width: 768px) {

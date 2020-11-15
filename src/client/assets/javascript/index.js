@@ -5,6 +5,7 @@ var store = {
 	track_id: undefined,
 	player_id: undefined,
 	race_id: undefined,
+	local_data: undefined
 }
 
 // We need our javascript to wait until the DOM is loaded
@@ -15,6 +16,13 @@ document.addEventListener("DOMContentLoaded", function() {
 
 async function onPageLoad() {
 	try {
+
+		 getLocalData()
+			.then(localData => {
+				console.log("LOCAL DATA", localData)
+				store["local_data"] = localData;
+			})
+
 		getTracks()
 			.then(tracks => {
 				const html = renderTrackCards(tracks)
@@ -26,6 +34,7 @@ async function onPageLoad() {
 				const html = renderRacerCars(racers)
 				renderAt('#racers', html)
 			})
+
 	} catch(error) {
 		console.log("Problem getting tracks and racers ::", error.message)
 		console.error(error)
@@ -73,6 +82,10 @@ async function delay(ms) {
 
 // This async function controls the flow of the race, add the logic and error handling
 async function handleCreateRace() {
+	if(!store["player_id"] || !store["track_id"]) {
+		alert("Please select all options before starting a race!")
+		return;
+	}
 	// render starting UI
 	// TODO - Get player_id and track_id from the store
 	const { player_id, track_id } = store;
@@ -86,9 +99,10 @@ async function handleCreateRace() {
 	// TODO - call the async function runCountdown
 	await runCountdown()
 	// TODO - call the async function startRace
-	await startRace(store["race_id"]-1)
+	const raceId = store["race_id"] > 1 ? store["race_id"]-1 : store["race_id"];
+	await startRace(raceId)
 	// TODO - call the async function runRace
-	await runRace(store["race_id"]-1)
+	await runRace(raceId)
 }
 
 function runRace(raceID) {
@@ -183,7 +197,8 @@ function handleSelectTrack(target) {
 function handleAccelerate() {
 	console.log("accelerate button clicked")
 	// TODO - Invoke the API call to accelerate
-	accelerate(store["race_id"]-1);
+	const raceId = store["race_id"] > 1 ? store["race_id"]-1 : store["race_id"];
+	accelerate(raceId);
 }
 
 // HTML VIEWS ------------------------------------------------
@@ -207,16 +222,53 @@ function renderRacerCars(racers) {
 
 function renderRacerCard(racer) {
 	const { id, driver_name, top_speed, acceleration, handling } = racer
-
+	let localRacer =  getLocalRacer(id);
+	const racerName = localRacer ? localRacer["driver_name"] : "unknown";
+	const imgUrl = renderRacer(racerName);
 	return `
 		<li class="card podracer" id="${id}">
-			<h3>${driver_name}</h3>
-			<p>${top_speed}</p>
-			<p>${acceleration}</p>
-			<p>${handling}</p>
+			<h3>${localRacer ? localRacer["driver_name"] : driver_name}</h3>
+			<div id=${"racer-profile-"+id}>
+				<img id="racer-image" src=${imgUrl} alt=${racerName}>
+			</div>
+			<div class="racer-stats">
+				<p>top speed: ${top_speed}</p>
+				<div class="racer-bar">
+					<div class="racer-filled-bar" style="width:  ${getStatsPercentage(top_speed, 1000)}%; background-color: blue"></div>
+				</div>
+			</div>
+			<div class="racer-stats">
+				<p>acceleration: ${acceleration}</p>
+				<div class="racer-bar">
+					<div class="racer-filled-bar" style="width:  ${getStatsPercentage(acceleration, 10)}%; background-color: red"></div>
+				</div>
+			</div>
+			<div class="racer-stats">
+				<p>handling: ${handling}</p>
+				<div class="racer-bar">
+					<div class="racer-filled-bar" style="width:  ${getStatsPercentage(handling, 10)}%; background-color: green"></div>
+				</div>
+			</div>
 		</li>
 	`
 }
+
+function getLocalRacer(racerId) {
+	console.log("STORE",store)
+	if(store["local_data"] && store["local_data"].hasOwnProperty("cars")) {
+		return store["local_data"]["cars"].find(racer => racer["id"] === racerId);
+	}
+	return undefined;
+}
+
+function renderRacer(racerName) {
+	return `http://localhost:3000/assets/images/${racerName}.png`;
+}
+
+function getStatsPercentage(stat, maxLimit) {
+	return (stat/maxLimit)*100;
+}
+
 
 function renderTrackCards(tracks) {
 	if (!tracks.length) {
@@ -292,14 +344,23 @@ function raceProgress(positions) {
 	let count = 1
 
 	const results = positions.map(p => {
+	const localRacer = getLocalRacer(p.id);
+	const racerName = localRacer ? localRacer["driver_name"] : p.driver_name;
+	const positionImage = `http://localhost:3000/assets/images/positions/png/${count}.png`;
+	const imgUrl = renderRacer(racerName);
+	count++;
 		return `
 			<tr>
 				<td>
-					<h3>${count++} - ${p.driver_name}</h3>
+					<div style="display: inline-block; position: relative">
+						<h3>${racerName}</h3>
+						<img src=${positionImage} alt=${`position ${count}`} width="32px" height="32px" style="position: absolute; bottom: 10px; left: 10px">
+						<img id="racer-image" src=${imgUrl} alt=${racerName}>
+					</div>
 				</td>
 			</tr>
 		`
-	})
+	}).join("")
 
 	return `
 		<main>
@@ -393,4 +454,12 @@ function accelerate(id) {
 	.catch(err => console.log("Problem accelerating the racer::",err))
 	// options parameter provided as defaultFetchOpts
 	// no body or datatype needed for this request
+}
+
+// LOCAL DATA FETCH
+
+function getLocalData() {
+	return fetch("http://localhost:3000/assets/data/data_dict.json")
+		.then(res => res.json())
+		.catch(err => console.log("Problem loading local game data::",err));
 }
