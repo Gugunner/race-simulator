@@ -39,7 +39,7 @@
   "tracks": [
     {
       "id": 1,
-      "name": "Track 1",
+      "name": "Game of Life",
       "segments": [
         87,
         47,
@@ -246,7 +246,7 @@
     },
     {
       "id": 2,
-      "name": "Track 2",
+      "name": "Rock You like a Hurricane",
       "segments": [
         37,
         86,
@@ -403,7 +403,7 @@
     },
     {
       "id": 3,
-      "name": "Track 3",
+      "name": "What's up People!",
       "segments": [
         15,
         10,
@@ -585,7 +585,7 @@
     },
     {
       "id": 4,
-      "name": "Track 4",
+      "name": "Fear of the Dark",
       "segments": [
         9,
         55,
@@ -743,7 +743,7 @@
     },
     {
       "id": 5,
-      "name": "Track 5",
+      "name": "Enter Sandman",
       "segments": [
         61,
         5,
@@ -942,7 +942,7 @@
     },
     {
       "id": 6,
-      "name": "Track 6",
+      "name": "Welcome to the Jungle",
       "segments": [
         18,
         7,
