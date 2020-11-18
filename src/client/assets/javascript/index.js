@@ -359,8 +359,10 @@ function raceProgress(positions, isFinished = false) {
 					<!--Renders racer cards with an icon to mark the position of the racer -->
 					<div style="display: inline-block; position: relative">
 						<h4>${racerName} ${p.id === store["player_id"] ? " (You)" : ""}</h4>
+						<!--In case the race segments could not be obtained it do not show any information -->
 						<p class="race-info">LAP: ${lap > 0 ? lap : ""}</p>
 						<p class="race-info">COMPLETION: ${completion > 0 ? completion.toFixed(2)+"%" : ""}</p>
+						<!--Only when race finishes it shows the position icons -->
 						${
 							isFinished ?
 							`<img src=${positionImage} alt=${`position ${count}`} width="32px" height="32px" style="position: absolute; bottom: 10px; left: 10px">` :
@@ -384,6 +386,12 @@ function raceProgress(positions, isFinished = false) {
 	`
 }
 
+/**
+ * If race segments exist returns the lap the racer is in and the race completion
+ * in percentage of the racer.
+ * @param {number} racerSegment
+ * @return {{completion: number, lap: number}}
+ */
 function getLapAndRaceCompletion(racerSegment) {
 	return store["race_segments"] ? {
 		lap: Math.floor(((racerSegment/store["race_segments"])/(1/4))+1),
