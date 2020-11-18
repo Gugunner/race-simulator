@@ -1,10 +1,11 @@
 // PROVIDED CODE BELOW (LINES 1 - 80) DO NOT REMOVE
 
 // The store will hold all information needed globally
-var store = {
+const store = {
 	track_id: undefined,
 	player_id: undefined,
 	race_id: undefined,
+	race_segments: undefined,
 	local_data: undefined
 }
 
@@ -58,7 +59,7 @@ function setupClickHandlers() {
 		if (target.matches('#submit-create-race')) {
 			event.preventDefault()
 			// start race
-			handleCreateRace()
+			handleCreateRace().catch(error => console.log(error.message))
 		}
 
 		// Handle acceleration click
@@ -81,25 +82,28 @@ async function delay(ms) {
 
 // This async function controls the flow of the race, add the logic and error handling
 async function handleCreateRace() {
-	if(!store["player_id"] || !store["track_id"]) {
-		alert("Please select all options before starting a race!")
-		return;
+	try {
+		if(!store["player_id"] || !store["track_id"]) {
+			alert("Please select all options before starting a race!")
+			throw new Error("Player Id or Track Id is missing");
+		}
+		// render starting UI
+		const { player_id, track_id } = store;
+		const race = await createRace(player_id, track_id);
+		renderAt('#race', renderRaceStartView(race["Track"], race["racers"]))
+		//Store race segments if possible
+		if(race.hasOwnProperty("Track") && race["Track"].hasOwnProperty("segments") && race["Track"]["segments"].length > 0) {
+			store["race_segments"] = race["Track"]["segments"].length;
+		}
+		store["race_id"] = race["ID"] - 1;
+		// The race has been created, now start the countdown
+		await runCountdown()
+		//API creates a race with an id 1 less than the one provided
+		await startRace(store["race_id"])
+		await runRace(store["race_id"])
+	} catch (error) {
+		console.log(error)
 	}
-	// render starting UI
-	const { player_id, track_id } = store;
-	let race;
-	//API has an error and it seems raceId 2 that must run with raceId 1 does not work
-	while(!race || race["race_id"] === 2) {
-		race = await createRace(player_id, track_id)
-	}
-	renderAt('#race', renderRaceStartView(race["Track"], race["racers"]))
-	store["race_id"] = race["ID"];
-	// The race has been created, now start the countdown
-	await runCountdown()
-	//API creates a race with an id 1 less than the one provided
-	const raceId = store["race_id"] - 1 ;
-	await startRace(raceId)
-	await runRace(raceId)
 }
 
 function runRace(raceID) {
@@ -170,8 +174,7 @@ function handleSelectTrack(target) {
 }
 
 function handleAccelerate() {
-	const raceId = store["race_id"] > 1 ? store["race_id"]-1 : store["race_id"];
-	accelerate(raceId);
+	accelerate(store["race_id"]).catch(error => console.log(error));
 }
 
 // HTML VIEWS ------------------------------------------------
@@ -329,13 +332,14 @@ function resultsView(positions) {
 			<h1>Race Results</h1>
 		</header>
 		<main>
-			${raceProgress(positions)}
+			${raceProgress(positions, true)}
 			<a href="/race" class="button">Start a new race</a>
 		</main>
 	`
 }
 
-function raceProgress(positions) {
+//Modified race to show final place when it finishes
+function raceProgress(positions, isFinished = false) {
 	let userPlayer = positions.find(e => e.id === store["player_id"])
 	userPlayer.driver_name += " (you)"
 
@@ -346,6 +350,7 @@ function raceProgress(positions) {
 	const localRacer = getLocal(p.id,"cars");
 	const racerName = localRacer ? localRacer["driver_name"] : p.driver_name;
 	const positionImage = `http://localhost:3000/assets/images/positions/${count}.png`;
+	const { lap, completion } = getLapAndRaceCompletion(p["segment"]);
 	const imgUrl = renderRacer(racerName);
 	count++;
 		return `
@@ -354,7 +359,13 @@ function raceProgress(positions) {
 					<!--Renders racer cards with an icon to mark the position of the racer -->
 					<div style="display: inline-block; position: relative">
 						<h4>${racerName} ${p.id === store["player_id"] ? " (You)" : ""}</h4>
-						<img src=${positionImage} alt=${`position ${count}`} width="32px" height="32px" style="position: absolute; bottom: 10px; left: 10px">
+						<p class="race-info">LAP: ${lap > 0 ? lap : ""}</p>
+						<p class="race-info">COMPLETION: ${completion > 0 ? completion.toFixed(2)+"%" : ""}</p>
+						${
+							isFinished ?
+							`<img src=${positionImage} alt=${`position ${count}`} width="32px" height="32px" style="position: absolute; bottom: 10px; left: 10px">` :
+							""
+						}
 						<img id="racer-image" src=${imgUrl} alt=${racerName}>
 					</div>
 				</td>
@@ -371,6 +382,16 @@ function raceProgress(positions) {
 			</section>
 		</main>
 	`
+}
+
+function getLapAndRaceCompletion(racerSegment) {
+	return store["race_segments"] ? {
+		lap: Math.floor(((racerSegment/store["race_segments"])/(1/4))+1),
+		completion: (racerSegment*100) / store["race_segments"]
+	} : {
+		lap: -1,
+		completion: -1
+	}
 }
 
 function renderAt(element, html) {
@@ -403,7 +424,6 @@ function getTracks() {
 }
 
 function getRacers() {
-	// GET request to `${SERVER}/api/cars`
 	return fetch(`${SERVER}/api/cars`)
 	.then(res => res.json())
 	.catch(err => console.log("Could not get racers::",err))
