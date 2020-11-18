@@ -17,11 +17,11 @@ form li {
 
 form li:hover {
     box-shadow: none;
-    border: 1px solid rgb(109, 233, 23);
+    border: 1px solid rgb(0, 0, 0);
 }
 
 form li.selected {
-    border: 1px solid rgb(109, 233, 23);
+    border: 1px solid rgb(0, 0, 0);
 }
 
 form li h3 {

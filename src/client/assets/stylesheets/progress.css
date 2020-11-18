@@ -19,7 +19,8 @@ section#accelerate button {
     width: 300px;
     margin: 30px auto;
     border-radius: 180%;
-    background-color: green;
+    background-color: black;
+    color: white;
     border-color: rgb(14, 166, 6);
     cursor: pointer;
 }

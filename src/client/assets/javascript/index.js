@@ -16,10 +16,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
 async function onPageLoad() {
 	try {
-
+	//We need to wait for local data before getting the real data from api
 		 await getLocalData()
 			.then(localData => {
-				console.log("LOCAL DATA", localData)
 				store["local_data"] = localData;
 			})
 
@@ -87,43 +86,33 @@ async function handleCreateRace() {
 		return;
 	}
 	// render starting UI
-	// TODO - Get player_id and track_id from the store
 	const { player_id, track_id } = store;
-	//TODO - invoke the API call to create the race, then save the result
-	const race = await createRace(player_id, track_id)
-	console.log("RACE",race);
+	let race;
+	//API has an error and it seems raceId 2 that must run with raceId 1 does not work
+	while(!race || race["race_id"] === 2) {
+		race = await createRace(player_id, track_id)
+	}
 	renderAt('#race', renderRaceStartView(race["Track"], race["racers"]))
-	// TODO - update the store with the race id
 	store["race_id"] = race["ID"];
 	// The race has been created, now start the countdown
-	// TODO - call the async function runCountdown
 	await runCountdown()
-	// TODO - call the async function startRace
-	const raceId = store["race_id"] > 1 ? store["race_id"]-1 : store["race_id"];
+	//API creates a race with an id 1 less than the one provided
+	const raceId = store["race_id"] - 1 ;
 	await startRace(raceId)
-	// TODO - call the async function runRace
 	await runRace(raceId)
 }
 
 function runRace(raceID) {
 	return new Promise(resolve => {
-	// TODO - use Javascript's built in setInterval method to get race info every 500ms
 	const raceInfo = {};
 	const raceInfoInterval = setInterval(() => {
 		getRace(raceID).then(info => {
 
 			Object.keys(info).forEach(k => raceInfo[k] = info[k]);
 			if(raceInfo.hasOwnProperty("status") && raceInfo.hasOwnProperty("positions")) {
-				/*
-                    TODO - if the race info status property is "in-progress", update the leaderboard by calling:
-                */
 				if(raceInfo["status"] === "in-progress") {
-					console.log("RACE IN PROGRESS");
 					renderAt('#leaderBoard', raceProgress(raceInfo["positions"]))
 				} else if(raceInfo["status"] === "finished") {
-					/*
-                        TODO - if the race info status property is "finished", run the following:
-                    */
 					clearInterval(raceInfoInterval) // to stop the interval from repeating
 					renderAt('#race', resultsView(raceInfo["positions"])) // to render the results view
 					resolve(raceInfo) // resolve the promise
@@ -143,12 +132,9 @@ async function runCountdown() {
 		let timer = 3
 
 		return new Promise(resolve => {
-			// TODO - use Javascript's built in setInterval method to count down once per second
 			const countDownInterval = setInterval(() => {
 				timer -= 1
-				// TODO - if the countdown is done, clear the interval, resolve the promise, and return
 				if(timer === 0) {
-					console.log("Times up!",timer)
 					clearInterval(countDownInterval);
 					resolve();
 				}
@@ -162,41 +148,28 @@ async function runCountdown() {
 }
 
 function handleSelectPodRacer(target) {
-	console.log("selected a pod", target.id)
-
 	// remove class selected from all racer options
 	const selected = document.querySelector('#racers .selected')
 	if(selected) {
 		selected.classList.remove('selected')
 	}
-
 	// add class selected to current target
 	target.classList.add('selected')
-
-	// TODO - save the selected racer to the store
 	store["player_id"] = parseInt(target["id"])
 }
 
 function handleSelectTrack(target) {
-	console.log("selected a track", target.id)
-
 	// remove class selected from all track options
 	const selected = document.querySelector('#tracks .selected')
 	if(selected) {
 		selected.classList.remove('selected')
 	}
-
 	// add class selected to current target
 	target.classList.add('selected')
-
-	// TODO - save the selected track id to the store
 	store["track_id"] = parseInt(target["id"])
-	
 }
 
 function handleAccelerate() {
-	console.log("accelerate button clicked")
-	// TODO - Invoke the API call to accelerate
 	const raceId = store["race_id"] > 1 ? store["race_id"]-1 : store["race_id"];
 	accelerate(raceId);
 }
@@ -220,9 +193,16 @@ function renderRacerCars(racers) {
 	`
 }
 
+/**
+ * Checks if local data is present to customize the racer cards
+ * and includes a bar style for the metrics to make them more appealing.
+ * If no local data is present show a default image for the racer cards
+ * @param {Object} racer
+ * @return {string} racerCard HTML
+ */
 function renderRacerCard(racer) {
 	const { id, driver_name, top_speed, acceleration, handling } = racer
-	let localRacer =  getLocalRacer(id);
+	let localRacer =  getLocal(id, "cars");
 	const racerName = localRacer ? localRacer["driver_name"] : "unknown";
 	const imgUrl = renderRacer(racerName);
 	return `
@@ -253,22 +233,20 @@ function renderRacerCard(racer) {
 	`
 }
 
-function getLocalRacer(racerId) {
-	console.log("STORE",store)
-	if(store["local_data"] && store["local_data"].hasOwnProperty("cars")) {
-		return store["local_data"]["cars"].find(racer => racer["id"] === racerId);
-	}
-	return undefined;
-}
-
+//Builds the image url for the racer card
 function renderRacer(racerName) {
 	return `http://localhost:3000/assets/images/${racerName}.png`;
 }
 
+/**
+ * Calculates the percentage as a number of the metric for the racer using maxLimit as the 100%
+ * @param {number} stat
+ * @param {number} maxLimit
+ * @return {number}
+ */
 function getStatsPercentage(stat, maxLimit) {
 	return (stat/maxLimit)*100;
 }
-
 
 function renderTrackCards(tracks) {
 	if (!tracks.length) {
@@ -286,9 +264,15 @@ function renderTrackCards(tracks) {
 	`
 }
 
+/**
+ Checks if local data is present to customize the tracks
+ * If no local data is present show the api name for the track
+ * @param {string} track
+ * @return {string} trackCardCard HTML
+ */
 function renderTrackCard(track) {
 	const { id, name } = track
-	const localTrack = getLocalTrack(id);
+	const localTrack = getLocal(id,"tracks");
 	return `
 		<li id="${id}" class="card track">
 			<h3 style="text-align: center">${localTrack ? localTrack["name"] : name}</h3>
@@ -296,10 +280,16 @@ function renderTrackCard(track) {
 	`
 }
 
-function getLocalTrack(trackId) {
-	console.log("STORE",store)
-	if(store["local_data"] && store["local_data"].hasOwnProperty("tracks")) {
-		return store["local_data"]["tracks"].find(track => track["id"] === trackId);
+/**
+ * Returns the local object that matches the id provided, if no match is found
+ * returns undefined
+ * @param {string} id
+ * @param {string} property
+ * @return {Object | undefined}
+ */
+function getLocal(id, property) {
+	if(store["local_data"] && store["local_data"].hasOwnProperty(property)) {
+		return store["local_data"][property].find(obj => obj["id"] === id);
 	}
 	return undefined;
 }
@@ -312,7 +302,7 @@ function renderCountdown(count) {
 }
 
 function renderRaceStartView(track, racers) {
-	const localTrack = getLocalTrack(track["id"]);
+	const localTrack = getLocal(track["id"],"tracks");
 	return `
 		<header>
 			<h1>Track: ${localTrack ? localTrack["name"] : track.name}</h1>
@@ -353,7 +343,7 @@ function raceProgress(positions) {
 	let count = 1
 
 	const results = positions.map(p => {
-	const localRacer = getLocalRacer(p.id);
+	const localRacer = getLocal(p.id,"cars");
 	const racerName = localRacer ? localRacer["driver_name"] : p.driver_name;
 	const positionImage = `http://localhost:3000/assets/images/positions/${count}.png`;
 	const imgUrl = renderRacer(racerName);
@@ -361,6 +351,7 @@ function raceProgress(positions) {
 		return `
 			<tr>
 				<td>
+					<!--Renders racer cards with an icon to mark the position of the racer -->
 					<div style="display: inline-block; position: relative">
 						<h4>${racerName} ${p.id === store["player_id"] ? " (You)" : ""}</h4>
 						<img src=${positionImage} alt=${`position ${count}`} width="32px" height="32px" style="position: absolute; bottom: 10px; left: 10px">
@@ -376,7 +367,7 @@ function raceProgress(positions) {
 			<h3>Leaderboard</h3>
 			<section id="leaderBoard">
 				${results}
-				 <div>Icons made by <a href="https://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com></a></div>
+				 <div style="margin-top: 20px">Icons made by <a href="https://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div>
 			</section>
 		</main>
 	`
@@ -405,10 +396,7 @@ function defaultFetchOpts() {
 	}
 }
 
-// TODO - Make a fetch call (with error handling!) to each of the following API endpoints 
-
 function getTracks() {
-	// GET request to `${SERVER}/api/tracks`
 	return fetch(`${SERVER}/api/tracks`)
 	.then(res => res.json())
 	.catch(err => console.log("Could not get track::",err))
@@ -437,7 +425,6 @@ function createRace(player_id, track_id) {
 }
 
 function getRace(id) {
-	// GET request to `${SERVER}/api/races/${id}`
 	return fetch(`${SERVER}/api/races/${id}`)
 		.then(res => res.json())
 		.catch(err => console.log("Could not get race info for race::",err));
@@ -455,19 +442,22 @@ function startRace(id) {
 }
 
 function accelerate(id) {
-	// POST request to `${SERVER}/api/races/${id}/accelerate`
 	return fetch(`${SERVER}/api/races/${id}/accelerate`,{
 		method: "POST",
 		...defaultFetchOpts()
 	})
-	.then(() => console.log("ACCELERATED!!!"))
 	.catch(err => console.log("Problem accelerating the racer::",err))
 	// options parameter provided as defaultFetchOpts
 	// no body or datatype needed for this request
 }
 
 // LOCAL DATA FETCH
-
+/**
+ * This functions gets a local data dictionary json
+ * to make the game have a customizable theme with racers
+ * and tracks
+ * @return {Promise<Response | void>}
+ */
 function getLocalData() {
 	return fetch("http://localhost:3000/assets/data/data_dict.json")
 		.then(res => res.json())
